@@ -82,8 +82,7 @@ Gallery.](https://alfred.app/workflows/chrisgrieser/shimmering-obsidian/)
 The Alfred-based Quick Switcher is basically an enhanced version of [Obsidian's
 Quick Switcher Core Plugin](https://help.obsidian.md/Plugins/Quick+switcher).
 
-<img alt="promo video" width=70%
-src="https://user-images.githubusercontent.com/73286100/139678407-9ac39baa-5f49-42a0-9622-0fbaf68540b2.gif">
+<img alt="promo video" width=70% src="https://user-images.githubusercontent.com/73286100/139678407-9ac39baa-5f49-42a0-9622-0fbaf68540b2.gif">
 
 ### How the search works
 All the search features listed here do not *directly* search your vault, but
@@ -157,8 +156,8 @@ that you are now searching only for files and folders inside that folder.
 #### Search for headings
 Displayed alongside the other search results are all headings in your vault.
 Selecting headings with `⏎` opens the file *at the respective heading*.
-- `⌃ + ⏎`: Copies either a Markdown link [that uses the Obsidian
-  URI](https://help.obsidian.md/Advanced+topics/Using+obsidian+URI#Action+%60hook-get-address%60)
+- `⌃ + ⏎`: Copies either a Markdown link
+  [that uses the Obsidian URI](https://help.obsidian.md/Advanced+topics/Using+obsidian+URI#Action+%60hook-get-address%60)
   or the wikilink to the selected file, depending on the setting. Also work with
   headings.
 - Add `heading` to your search query, to only display headings, for example, `o
@@ -170,8 +169,8 @@ Selecting headings with `⏎` opens the file *at the respective heading*.
   configuration.
 
 > [!TIP]
-> If the search results become too crowded, you can ignore certain heading levels
-> in the workflow configuration.
+> If the search results become too crowded, you can ignore certain heading
+> levels in the workflow configuration.
 
 #### Browse links of a note
 **Use `⇧ + ⏎` on any search result of the main `o` search to browse the links of
@@ -237,8 +236,8 @@ the file simply is opened in your default app.)
 ### Extra features
 
 #### Vault search as Alfred fallback
-The main search (`o`) can also be used as [Fallback Search for
-Alfred](https://www.alfredapp.com/help/features/default-results/fallback-searches/),
+The main search (`o`) can also be used as
+[Fallback Search for Alfred](https://www.alfredapp.com/help/features/default-results/fallback-searches/),
 basically a search that shows up when any Alfred search has no result.
 
 #### Previewing notes via QuickLook
@@ -310,9 +309,8 @@ Switcher](#alfred-based-quick-switcher).)
   new note is created which contains the OCR-ed content of the selection.
 - For best results, you should set the languages to be recognized in the
   workflow settings, such as `eng+deu` for English and German. You can find out
-  the
-  code for your languages in [this
-  list](https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html).
+  the code for your languages in
+  [this list](https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html).
 - 💡 There are various settings in the workflow configurations for
   OCR-screenshots.
 
@@ -330,8 +328,7 @@ brew install tesseract tesseract-lang
 > give Alfred permission to record your screen. You can do so under the macOS
 > system settings.
 >
-> <img
-> src="<https://user-images.githubusercontent.com/73286100/131231644-a800c0b0-8dc2-4ae9-bd41-c3937741b94a.png>"
+> <img src="<https://user-images.githubusercontent.com/73286100/131231644-a800c0b0-8dc2-4ae9-bd41-c3937741b94a.png>"
 > alt="Permissions for OCR Screenshots" width=35%>
 
 ### Image screenshot
@@ -360,8 +357,7 @@ brew install tesseract tesseract-lang
 - Unsurprisingly, this workflow requires the [Workspaces Core
   Plugin](https://help.obsidian.md/Plugins/Workspaces) to be enabled.
 
-<img alt="workspace" width=60%
-src="https://user-images.githubusercontent.com/73286100/133615940-a56731e5-6b60-4d28-b877-7ea48d10225e.gif">
+<img alt="workspace" width=60% src="https://user-images.githubusercontent.com/73286100/133615940-a56731e5-6b60-4d28-b877-7ea48d10225e.gif">
 
 ### Vault switcher
 **`ov`: Open `V`aults in Obsidian, Finder, or the Terminal**
@@ -402,9 +398,9 @@ end tell
 ```
 
 > [!WARNING]
-> Please be aware that this is a simplistic backup solution. While I do not
-> have any problems with it, this workflow comes without any warranties, as
-> stated in the
+> Please be aware that this is a simplistic backup solution. While I do not have
+> any problems with it, this workflow comes without any warranties, as stated in
+> the
 > [license](https://github.com/chrisgrieser/shimmering-obsidian/blob/main/LICENSE).
 > If you care about safety, please use a professional backup solution.
 
@@ -466,8 +462,7 @@ end tell
   query `op JaneDoe` returns all themes (and plugins) authored by the user
   `JaneDoe`.
 
-<img alt="plugin search" width=60%
-src="https://user-images.githubusercontent.com/73286100/131027623-5e8b3667-d00d-47dc-ba49-6938686e2aca.gif">
+<img alt="plugin search" width=60% src="https://user-images.githubusercontent.com/73286100/131027623-5e8b3667-d00d-47dc-ba49-6938686e2aca.gif">
 
 ### Settings & local plugins
 **`o,`: Search and directly open specific setting tabs.**
@@ -525,7 +520,8 @@ Search the official [Obsidian developer docs](https://docs.obsidian.md/Home).
 - Also thanks to [@Vinzent03](https://github.com/Vinzent03) for his invaluable
   [Advanced URI plugin](https://github.com/Vinzent03/obsidian-advanced-uri),
   which enables Alfred to control various aspects of Obsidian.
-- Most icons created by [Freepik (Flaticon)](https://www.flaticon.com/authors/freepik).
+- Most icons created by
+  [Freepik (Flaticon)](https://www.flaticon.com/authors/freepik).
 
 ## About the developer
 In my day job, I am a sociologist studying the social mechanisms underlying the
@@ -533,15 +529,17 @@ digital economy. For my PhD project, I investigate the governance of the app
 economy and how software ecosystems manage the tension between innovation and
 compatibility. If you are interested in this subject, feel free to get in touch.
 
+> [!IMPORTANT]
+> Due to the large number of requests I receive, and due to the need for
+> information the respective forms ask for, I am not able to give support
+> via email. For questions, bug reports, or feature requests for this workflow,
+> please open a [GitHub
+> issue](https://github.com/chrisgrieser/shimmering-obsidian/issues).
+
 - [Website](https://chris-grieser.de/)
 - [ResearchGate](https://www.researchgate.net/profile/Christopher-Grieser)
 - [Mastodon](https://pkm.social/@pseudometa)
 - [LinkedIn](https://www.linkedin.com/in/christopher-grieser-ba693b17a/)
-
-> [!IMPORTANT]
-> For questions, bug reports, or feature requests for this workflow,
-> please open a [GitHub
-> issue](https://github.com/chrisgrieser/shimmering-obsidian/issues).
 
 If you find this project helpful, you can support me via [🩷 GitHub
 Sponsors](https://github.com/sponsors/chrisgrieser?frequency=one-time).

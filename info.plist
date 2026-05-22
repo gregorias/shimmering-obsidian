@@ -7107,6 +7107,25 @@ DOUBLE CLICK THIS to set Hotkey. Suggested Hotkey: cmd + shift + 1</string>
 			<key>config</key>
 			<dict>
 				<key>default</key>
+				<false/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Search all vaults</string>
+			</dict>
+			<key>description</key>
+			<string>Search for notes and canvases across all of your Obsidian vaults rather than just the active one.</string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>search_all_vaults</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
 				<string>h1 h5 h6</string>
 				<key>placeholder</key>
 				<string>h1 h5 h6</string>

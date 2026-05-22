@@ -28,6 +28,22 @@ function camelCaseMatch(str) {
 const fileExists = (/** @type {string} */ filePath) => Application("Finder").exists(Path(filePath));
 
 //──────────────────────────────────────────────────────────────────────────────
+/**
+ * Gets the paths of all vaults configured in Obsidian by reading the obsidian.json file.
+ *
+ * @returns {string[]} An array of vault paths.
+ */
+function getVaultPaths() {
+	const vaultListJson =
+		app.pathTo("home folder") + "/Library/Application Support/obsidian/obsidian.json";
+	if (!fileExists(vaultListJson)) return [];
+	const vaultList = JSON.parse(readFile(vaultListJson)).vaults;
+	const vaultPaths = [];
+	for (const hash in vaultList) {
+		vaultPaths.push(vaultList[hash].path);
+	}
+	return vaultPaths;
+}
 
 function getVaultData(vaultPath, configFolder) {
 	const vaultConfig = `${vaultPath}/${configFolder}`;
@@ -159,6 +175,7 @@ function createFileItems(
 		type: "file:skipcheck",
 		uid: relativePath,
 		icon: { path: iconpath },
+		variables: { note_vault_path: vaultPath },
 		isPrioritized: isPrioritized,
 	});
 
@@ -174,6 +191,7 @@ function createFileItems(
 				type: "file:skipcheck",
 				uid: alias + "_" + relativePath,
 				icon: { path: "icons/alias.png" },
+				variables: { note_vault_path: vaultPath },
 				isPrioritized: isPrioritized,
 			});
 		}
@@ -200,6 +218,7 @@ function createFileItems(
 					alt: { arg: relativePath },
 					shift: { arg: relativePath },
 				},
+				variables: { note_vault_path: vaultPath },
 				isPrioritized: isPrioritized,
 			});
 		}
@@ -233,6 +252,7 @@ function createCanvasItem(canvas, starsAndBookmarks, recentFiles) {
 		type: "file:skipcheck",
 		icon: { path: "icons/canvas.png" },
 		uid: relativePath,
+		variables: { note_vault_path: vaultPath },
 		mods: {
 			shift: { valid: false, subtitle: "⛔ Cannot do that with a canvas." },
 			fn: { valid: false, subtitle: "⛔ Cannot do that with a canvas." },
@@ -285,93 +305,22 @@ function createFolderItem(absolutePath, vaultPath) {
  * - current_vault_path: (optional) The vault path for the subfolder mode.
  *   Must be set for for the subfolder mode.
  * - h_lvl_ignore: Heading levels to ignore (e.g., "123").
+ * - search_all_vaults: (optional) Set to "1" to search all vaults instead of just the active one.
  *
  * @type {AlfredRun}
  */
 // biome-ignore lint/correctness/noUnusedVariables: Alfred run
 function run() {
-	const vaultPath = $.getenv("vault_path");
 	const configFolder = $.getenv("config_folder");
-	const vaultConfig = `${vaultPath}/${configFolder}`;
-
-	if (!fileExists(vaultConfig)) {
-		const errorItem = {
-			title: `🚫 Vault config folder "${configFolder}" not found.`,
-			subtitle: "Set the correct config folder in the workflow configuration.",
-			valid: false,
-		};
-		return JSON.stringify({ items: [errorItem] });
-	}
-
 	const removeEmojis = $.getenv("remove_emojis") === "1";
 	const subtitleType = $.getenv("main_search_subtitle");
+	const searchAllVaults =
+		$.NSProcessInfo.processInfo.environment.objectForKey("search_all_vaults").js === "1";
 
-	const vaultData = getVaultData(vaultPath, configFolder);
-	if (typeof vaultData === "string") return vaultData; // error message
-	let { fileArray, canvasArray, starsAndBookmarks, recentFiles, excludeFilter } = vaultData;
-
-	//──────────────────────────────────────────────────────────────────────────────
-	// DETERMINE PATH TO SEARCH
-	let currentFolder = "";
-	let pathToSearch = vaultPath;
-	let isInSubfolder = false;
-	// either searches the vault, or a subfolder of the vault
-	try {
-		const currentFolderVaultPath =
-			$.NSProcessInfo.processInfo.environment.objectForKey("current_vault_path").js;
-		currentFolder = $.NSProcessInfo.processInfo.environment.objectForKey("browse_folder").js;
-		if (currentFolder !== "/" && currentFolder !== undefined) {
-			isInSubfolder = true;
-			pathToSearch = currentFolderVaultPath + "/" + currentFolder;
-		}
-	} catch (_error) {
-		// ignore
+	let vaultsToSearch = [$.getenv("vault_path")];
+	if (searchAllVaults) {
+		vaultsToSearch = getVaultPaths();
 	}
-
-	// returns *absolute* paths
-	let folderArray = app
-		.doShellScript(`find "${pathToSearch}" -type d -mindepth 1 -not -path "*/.*"`)
-		.split("\r");
-	if (folderArray[0] === "") folderArray = [];
-
-	//──────────────────────────────────────────────────────────────────────────────
-	// EXCLUSION & IGNORING
-
-	// if in subfolder, filter files outside subfolder
-	if (isInSubfolder) {
-		fileArray = fileArray.filter((/** @type {{ relativePath: string; }} */ file) =>
-			file.relativePath.startsWith(currentFolder),
-		);
-		canvasArray = canvasArray.filter((/** @type {{ relativePath: string; }} */ file) =>
-			file.relativePath.startsWith(currentFolder),
-		);
-		// INFO folderarray does not need to be filtered, since already filtered on creation
-	}
-
-	/**
-	 * @param {(string|{relativePath: string})[]} items if folder, object list otherwise
-	 * @param {boolean} isFolder
-	 * @return {(string|{relativePath: string})[]}
-	 */
-	function applyExcludeFilter(items, isFolder) {
-		if (!excludeFilter || excludeFilter.length === 0 || items.length === 0) return items;
-		return items.filter((item) => {
-			let include = true;
-			// @ts-expect-error
-			const path = isFolder ? item + "/" : item.relativePath;
-			for (const filter of excludeFilter) {
-				const isRegexFilter = filter.startsWith("/");
-				const relPath = isFolder ? path.slice(vaultPath.length + 1) : path;
-				if (isRegexFilter && relPath.includes(filter)) include = false;
-				if (!isRegexFilter && relPath.startsWith(filter)) include = false;
-			}
-			return include;
-		});
-	}
-
-	folderArray = applyExcludeFilter(folderArray, true);
-	canvasArray = applyExcludeFilter(canvasArray, false);
-	fileArray = applyExcludeFilter(fileArray, false);
 
 	// ignored headings
 	const hLVLignore = $.getenv("h_lvl_ignore");
@@ -381,65 +330,171 @@ function run() {
 		headingIgnore[i] = shouldIgnore;
 	}
 
-	//──────────────────────────────────────────────────────────────────────────────
-	// CONSTRUCTION OF JSON FOR ALFRED
 	/** @type {AlfredItem[]} */
 	const resultsArr = [];
 
-	// FILES
-	for (const file of fileArray) {
-		const fileItems = createFileItems(
-			file,
-			vaultPath,
-			starsAndBookmarks,
-			recentFiles,
-			removeEmojis,
-			subtitleType,
-			headingIgnore,
-		);
-		for (const item of fileItems) {
-			const isPrioritized = item.isPrioritized;
-			delete item.isPrioritized;
-			resultsArr[isPrioritized ? "unshift" : "push"](item);
+	let currentFolder = "";
+	let isInSubfolder = false;
+	// either searches the vault, or a subfolder of the vault
+	try {
+		const currentFolderVaultPath =
+			$.NSProcessInfo.processInfo.environment.objectForKey("current_vault_path").js;
+		currentFolder = $.NSProcessInfo.processInfo.environment.objectForKey("browse_folder").js;
+		if (currentFolder !== "/" && currentFolder !== undefined) {
+			isInSubfolder = true;
+			// When browsing a folder, we only search in that specific vault and folder
+			vaultsToSearch = [currentFolderVaultPath];
+		}
+	} catch (_error) {
+		// ignore
+	}
+
+	for (const vaultPath of vaultsToSearch) {
+		const vaultConfig = `${vaultPath}/${configFolder}`;
+
+		if (!fileExists(vaultConfig)) {
+			// Skip vaults that don't have the config folder instead of erroring out when searching all vaults
+			if (!searchAllVaults) {
+				const errorItem = {
+					title: `🚫 Vault config folder "${configFolder}" not found.`,
+					subtitle: "Set the correct config folder in the workflow configuration.",
+					valid: false,
+				};
+				return JSON.stringify({ items: [errorItem] });
+			}
+			continue;
+		}
+
+		const vaultData = getVaultData(vaultPath, configFolder);
+		if (!vaultData || typeof vaultData === "string") {
+			if (!searchAllVaults && typeof vaultData === "string") return vaultData;
+			continue;
+		}
+		let { fileArray, canvasArray, starsAndBookmarks, recentFiles, excludeFilter, vaultName } =
+			vaultData;
+
+		//──────────────────────────────────────────────────────────────────────────────
+		// DETERMINE PATH TO SEARCH
+		let pathToSearch = vaultPath;
+		if (isInSubfolder) {
+			pathToSearch = vaultPath + "/" + currentFolder;
+		}
+
+		// returns *absolute* paths
+		let folderArray = app
+			.doShellScript(`find "${pathToSearch}" -type d -mindepth 1 -not -path "*/.*"`)
+			.split("\r");
+		if (folderArray[0] === "") folderArray = [];
+
+		//──────────────────────────────────────────────────────────────────────────────
+		// EXCLUSION & IGNORING
+
+		// if in subfolder, filter files outside subfolder
+		if (isInSubfolder) {
+			fileArray = fileArray.filter((/** @type {{ relativePath: string; }} */ file) =>
+				file.relativePath.startsWith(currentFolder),
+			);
+			canvasArray = canvasArray.filter((/** @type {{ relativePath: string; }} */ file) =>
+				file.relativePath.startsWith(currentFolder),
+			);
+			// INFO folderarray does not need to be filtered, since already filtered on creation
+		}
+
+		/**
+		 * @param {(string|{relativePath: string})[]} items if folder, object list otherwise
+		 * @param {boolean} isFolder
+		 * @return {(string|{relativePath: string})[]}
+		 */
+		function applyExcludeFilter(items, isFolder) {
+			if (!excludeFilter || excludeFilter.length === 0 || items.length === 0) return items;
+			return items.filter((item) => {
+				let include = true;
+				// @ts-expect-error
+				const path = isFolder ? item + "/" : item.relativePath;
+				for (const filter of excludeFilter) {
+					const isRegexFilter = filter.startsWith("/");
+					const relPath = isFolder ? path.slice(vaultPath.length + 1) : path;
+					if (isRegexFilter && relPath.includes(filter)) include = false;
+					if (!isRegexFilter && relPath.startsWith(filter)) include = false;
+				}
+				return include;
+			});
+		}
+
+		folderArray = applyExcludeFilter(folderArray, true);
+		canvasArray = applyExcludeFilter(canvasArray, false);
+		fileArray = applyExcludeFilter(fileArray, false);
+
+		//──────────────────────────────────────────────────────────────────────────────
+		// CONSTRUCTION OF JSON FOR ALFRED
+
+		// FILES
+		for (const file of fileArray) {
+			const fileItems = createFileItems(
+				file,
+				vaultPath,
+				starsAndBookmarks,
+				recentFiles,
+				removeEmojis,
+				subtitleType,
+				headingIgnore,
+			);
+			for (const item of fileItems) {
+				const isPrioritized = item.isPrioritized;
+				delete item.isPrioritized;
+				if (searchAllVaults) {
+					item.subtitle = `[${vaultName}] ` + item.subtitle;
+				}
+				resultsArr[isPrioritized ? "unshift" : "push"](item);
+			}
+		}
+
+		// CANVASES
+		for (const canvas of canvasArray) {
+			const canvasItem = createCanvasItem(canvas, starsAndBookmarks, recentFiles);
+			const isPrioritized = canvasItem.isPrioritized;
+			delete canvasItem.isPrioritized;
+			if (searchAllVaults) {
+				canvasItem.subtitle = `[${vaultName}] ` + canvasItem.subtitle;
+			}
+			resultsArr[isPrioritized ? "unshift" : "push"](canvasItem);
+		}
+
+		// FOLDERS
+		for (const absolutePath of folderArray) {
+			const folderItem = createFolderItem(absolutePath, vaultPath);
+			if (folderItem) {
+				if (searchAllVaults) {
+					folderItem.subtitle = `[${vaultName}] ` + folderItem.subtitle;
+				}
+				resultsArr.push(folderItem);
+			}
+		}
+
+		// ADDITIONAL OPTIONS WHEN BROWSING A FOLDER
+		if (isInSubfolder) {
+			// New File in Folder
+			resultsArr.push({
+				title: "Create new note in this folder",
+				subtitle: "▸ " + currentFolder,
+				arg: "new",
+				icon: { path: "icons/new.png" },
+			});
+
+			// go up to parent folder
+			resultsArr.push({
+				title: "⬆ Up to Parent Folder",
+				match: "up back parent folder directory browse .. cd",
+				subtitle: "▸ " + parentFolder(currentFolder),
+				arg: parentFolder(currentFolder),
+				icon: { path: "icons/folder.png" },
+				variables: {
+					folder_vault_path: vaultPath,
+				},
+			});
 		}
 	}
 
-	// CANVASES
-	for (const canvas of canvasArray) {
-		const canvasItem = createCanvasItem(canvas, starsAndBookmarks, recentFiles);
-		const isPrioritized = canvasItem.isPrioritized;
-		delete canvasItem.isPrioritized;
-		resultsArr[isPrioritized ? "unshift" : "push"](canvasItem);
-	}
-
-	// FOLDERS
-	for (const absolutePath of folderArray) {
-		const folderItem = createFolderItem(absolutePath, vaultPath);
-		if (folderItem) resultsArr.push(folderItem);
-	}
-
-	// ADDITIONAL OPTIONS WHEN BROWSING A FOLDER
-	if (isInSubfolder) {
-		// New File in Folder
-		resultsArr.push({
-			title: "Create new note in this folder",
-			subtitle: "▸ " + currentFolder,
-			arg: "new",
-			icon: { path: "icons/new.png" },
-		});
-
-		// go up to parent folder
-		resultsArr.push({
-			title: "⬆ Up to Parent Folder",
-			match: "up back parent folder directory browse .. cd",
-			subtitle: "▸ " + parentFolder(currentFolder),
-			arg: parentFolder(currentFolder),
-			icon: { path: "icons/folder.png" },
-			variables: {
-				folder_vault_path: vaultPath,
-			},
-		});
-	}
 	if (resultsArr.length === 0) {
 		resultsArr.push({
 			title: "🚫 No notes found.",

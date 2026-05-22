@@ -260,6 +260,9 @@ function createFolderItem(absolutePath, vaultPath) {
 		type: "file:skipcheck",
 		uid: relativePath,
 		icon: { path: "icons/folder.png" },
+		variables: {
+			folder_vault_path: vaultPath,
+		},
 		mods: {
 			alt: { subtitle: "⌥: Open Folder in Finder" },
 			cmd: denyForFolder,
@@ -277,7 +280,10 @@ function createFolderItem(absolutePath, vaultPath) {
  * - config_folder: The Obsidian configuration folder (e.g., ".obsidian").
  * - main_search_subtitle: The type of subtitle to display ("parent" or "tags").
  * - remove_emojis: Set to "1" to remove emojis from search results.
- * - browse_folder: (optional) The relative path of a subfolder to search within.
+ * - browse_folder: (optional) The path of a subfolder to search within.
+ *   Can be undefined, "/", or a relative path signifying the subfolder mode.
+ * - current_vault_path: (optional) The vault path for the subfolder mode.
+ *   Must be set for for the subfolder mode.
  * - h_lvl_ignore: Heading levels to ignore (e.g., "123").
  *
  * @type {AlfredRun}
@@ -307,16 +313,20 @@ function run() {
 	//──────────────────────────────────────────────────────────────────────────────
 	// DETERMINE PATH TO SEARCH
 	let currentFolder = "";
-	let pathToSearch;
+	let pathToSearch = vaultPath;
+	let isInSubfolder = false;
 	// either searches the vault, or a subfolder of the vault
 	try {
-		currentFolder = $.getenv("browse_folder");
-		pathToSearch = vaultPath + "/" + currentFolder;
-		if (pathToSearch.endsWith("//")) pathToSearch = vaultPath; // when going back up from child of vault root
+		const currentFolderVaultPath =
+			$.NSProcessInfo.processInfo.environment.objectForKey("current_vault_path").js;
+		currentFolder = $.NSProcessInfo.processInfo.environment.objectForKey("browse_folder").js;
+		if (currentFolder !== "/" && currentFolder !== undefined) {
+			isInSubfolder = true;
+			pathToSearch = currentFolderVaultPath + "/" + currentFolder;
+		}
 	} catch (_error) {
-		pathToSearch = vaultPath;
+		// ignore
 	}
-	const isInSubfolder = pathToSearch !== vaultPath;
 
 	// returns *absolute* paths
 	let folderArray = app
@@ -425,6 +435,9 @@ function run() {
 			subtitle: "▸ " + parentFolder(currentFolder),
 			arg: parentFolder(currentFolder),
 			icon: { path: "icons/folder.png" },
+			variables: {
+				folder_vault_path: vaultPath,
+			},
 		});
 	}
 	if (resultsArr.length === 0) {

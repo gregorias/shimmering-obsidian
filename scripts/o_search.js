@@ -29,29 +29,15 @@ const fileExists = (/** @type {string} */ filePath) => Application("Finder").exi
 
 //──────────────────────────────────────────────────────────────────────────────
 
-/** @type {AlfredRun} */
-// biome-ignore lint/correctness/noUnusedVariables: Alfred run
-function run() {
-	const vaultPath = $.getenv("vault_path");
-	const configFolder = $.getenv("config_folder");
+function getVaultData(vaultPath, configFolder) {
 	const vaultConfig = `${vaultPath}/${configFolder}`;
-
-	if (!fileExists(vaultConfig)) {
-		const errorItem = {
-			title: `🚫 Vault config folder "${configFolder}" not found.`,
-			subtitle: "Set the correct config folder in the workflow configuration.",
-			valid: false,
-		};
-		return JSON.stringify({ items: [errorItem] });
-	}
+	if (!fileExists(vaultConfig)) return null;
 
 	const metadataJSON = `${vaultConfig}/plugins/metadata-extractor/metadata.json`;
 	const canvasJSON = `${vaultConfig}/plugins/metadata-extractor/canvas.json`;
 	const starredJSON = `${vaultConfig}/starred.json`;
 	const bookmarkJSON = `${vaultConfig}/bookmarks.json`;
 	const excludeFilterJSON = `${vaultConfig}/app.json`;
-	const removeEmojis = $.getenv("remove_emojis") === "1";
-	const subtitleType = $.getenv("main_search_subtitle");
 
 	let recentJSON = `${vaultConfig}/workspace.json`;
 	if (!fileExists(recentJSON)) recentJSON = recentJSON.slice(0, -5); // Obsidian 0.16 uses workspace.json → https://discord.com/channels/686053708261228577/716028884885307432/1013906018578743478
@@ -60,7 +46,7 @@ function run() {
 		? JSON.parse(readFile(excludeFilterJSON)).userIgnoreFilters
 		: [];
 	const recentFiles = fileExists(recentJSON) ? JSON.parse(readFile(recentJSON)).lastOpenFiles : [];
-	let canvasArray = fileExists(canvasJSON) ? JSON.parse(readFile(canvasJSON)) : [];
+	const canvasArray = fileExists(canvasJSON) ? JSON.parse(readFile(canvasJSON)) : [];
 
 	//───────────────────────────────────────────────────────────────────────────
 	// Main Metadata
@@ -72,7 +58,7 @@ function run() {
 		};
 		return JSON.stringify({ items: [errorItem] });
 	}
-	let fileArray = JSON.parse(readFile(metadataJSON));
+	const fileArray = JSON.parse(readFile(metadataJSON));
 
 	//──────────────────────────────────────────────────────────────────────────────
 	// BOOKMARKS & STARS
@@ -104,6 +90,41 @@ function run() {
 		bmFlatten(bookm, bookmarks);
 	}
 	const starsAndBookmarks = [...new Set([...stars, ...bookmarks])];
+	const vaultName = vaultPath.split("/").pop();
+
+	return {
+		vaultPath,
+		vaultName,
+		fileArray,
+		canvasArray,
+		starsAndBookmarks,
+		recentFiles,
+		excludeFilter,
+	};
+}
+
+/** @type {AlfredRun} */
+// biome-ignore lint/correctness/noUnusedVariables: Alfred run
+function run() {
+	const vaultPath = $.getenv("vault_path");
+	const configFolder = $.getenv("config_folder");
+	const vaultConfig = `${vaultPath}/${configFolder}`;
+
+	if (!fileExists(vaultConfig)) {
+		const errorItem = {
+			title: `🚫 Vault config folder "${configFolder}" not found.`,
+			subtitle: "Set the correct config folder in the workflow configuration.",
+			valid: false,
+		};
+		return JSON.stringify({ items: [errorItem] });
+	}
+
+	const removeEmojis = $.getenv("remove_emojis") === "1";
+	const subtitleType = $.getenv("main_search_subtitle");
+
+	const vaultData = getVaultData(vaultPath, configFolder);
+	if (typeof vaultData === "string") return vaultData; // error message
+	let { fileArray, canvasArray, starsAndBookmarks, recentFiles, excludeFilter } = vaultData;
 
 	//──────────────────────────────────────────────────────────────────────────────
 	// DETERMINE PATH TO SEARCH

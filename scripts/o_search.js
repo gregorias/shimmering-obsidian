@@ -103,6 +103,173 @@ function getVaultData(vaultPath, configFolder) {
 	};
 }
 
+/**
+ * @param {any} file
+ * @param {string} vaultPath
+ * @param {string[]} starsAndBookmarks
+ * @param {string[]} recentFiles
+ * @param {boolean} removeEmojis
+ * @param {string} subtitleType
+ * @param {boolean[]} headingIgnore
+ * @returns {AlfredItem[]}
+ */
+function createFileItems(
+	file,
+	vaultPath,
+	starsAndBookmarks,
+	recentFiles,
+	removeEmojis,
+	subtitleType,
+	headingIgnore,
+) {
+	const items = [];
+	const filename = file.fileName;
+	const relativePath = file.relativePath;
+	const absolutePath = vaultPath + "/" + relativePath;
+	const isBookmarked = starsAndBookmarks.includes(relativePath);
+	const isRecent = recentFiles.includes(relativePath);
+	const isPrioritized = isRecent || isBookmarked;
+
+	// matching for Alfred
+	const tagMatcher = file.tags ? " #" + file.tags.join(" #") : "";
+	let additionalMatcher = "";
+	if (isRecent) additionalMatcher += " recent";
+	if (isBookmarked) additionalMatcher += " starred bookmarked";
+
+	// icon & emojis
+	let iconpath = "icons/note.png";
+	let emoji = "";
+	if (isBookmarked) emoji += "🔖 ";
+	if (isRecent) emoji += "🕑 ";
+	if (filename.toLowerCase().includes("kanban")) iconpath = "icons/kanban.png";
+	if (removeEmojis) emoji = "";
+
+	const subtitle =
+		subtitleType === "parent"
+			? "▸ " + parentFolder(relativePath)
+			: (file.tags || []).map((/** @type {string} */ t) => "#" + t).join(" ");
+
+	// Notes (file names)
+	items.push({
+		title: emoji + filename,
+		match: camelCaseMatch(filename) + tagMatcher + " filename name title" + additionalMatcher,
+		subtitle: subtitle,
+		arg: relativePath,
+		quicklookurl: absolutePath,
+		type: "file:skipcheck",
+		uid: relativePath,
+		icon: { path: iconpath },
+		isPrioritized: isPrioritized,
+	});
+
+	// Aliases
+	if (file.aliases) {
+		for (const alias of file.aliases) {
+			items.push({
+				title: emoji + alias,
+				match: camelCaseMatch(alias) + "alias",
+				subtitle: "↪ " + alias,
+				arg: relativePath,
+				quicklookurl: absolutePath,
+				type: "file:skipcheck",
+				uid: alias + "_" + relativePath,
+				icon: { path: "icons/alias.png" },
+				isPrioritized: isPrioritized,
+			});
+		}
+	}
+
+	// Headings
+	if (file.headings) {
+		for (const heading of file.headings) {
+			const hName = heading.heading;
+			const hLevel = heading.level;
+			if (headingIgnore[hLevel]) continue; // skips iteration if heading has been configured as ignore
+			const headingIconpath = `icons/headings/h${hLevel}.png`;
+			const matchStr = camelCaseMatch(hName) + `h${hLevel}`;
+
+			items.push({
+				title: hName,
+				match: matchStr,
+				subtitle: "➣ " + filename,
+				arg: relativePath + "#" + hName,
+				uid: relativePath + "#" + hName,
+				quicklookurl: absolutePath,
+				icon: { path: headingIconpath },
+				mods: {
+					alt: { arg: relativePath },
+					shift: { arg: relativePath },
+				},
+				isPrioritized: isPrioritized,
+			});
+		}
+	}
+
+	return items;
+}
+
+/**
+ * @param {any} canvas
+ * @param {string[]} starsAndBookmarks
+ * @param {string[]} recentFiles
+ * @returns {AlfredItem}
+ */
+function createCanvasItem(canvas, starsAndBookmarks, recentFiles) {
+	const name = canvas.basename;
+	const relativePath = canvas.relativePath;
+	const isBookmarked = starsAndBookmarks.includes(relativePath);
+	const isRecent = recentFiles.includes(relativePath);
+
+	// matching for Alfred
+	let additionalMatcher = "";
+	if (isRecent) additionalMatcher += " recent";
+	if (isBookmarked) additionalMatcher += " starred bookmarked";
+
+	return {
+		title: name,
+		match: camelCaseMatch(name) + "canvas" + additionalMatcher,
+		subtitle: "▸ " + parentFolder(relativePath),
+		arg: relativePath,
+		type: "file:skipcheck",
+		icon: { path: "icons/canvas.png" },
+		uid: relativePath,
+		mods: {
+			shift: { valid: false, subtitle: "⛔ Cannot do that with a canvas." },
+			fn: { valid: false, subtitle: "⛔ Cannot do that with a canvas." },
+		},
+		isPrioritized: isRecent || isBookmarked,
+	};
+}
+
+/**
+ * @param {string} absolutePath
+ * @param {string} vaultPath
+ * @returns {AlfredItem | null}
+ */
+function createFolderItem(absolutePath, vaultPath) {
+	const name = absolutePath.split("/").pop();
+	const relativePath = absolutePath.slice(vaultPath.length + 1);
+	if (!name) return null; // root on 2 level deep folder search
+
+	const denyForFolder = { valid: false, subtitle: "⛔ Cannot do that with a folder." };
+	return {
+		title: name,
+		match: camelCaseMatch(name) + "folder",
+		subtitle: "▸ " + parentFolder(relativePath) + "   [↵: Browse]",
+		arg: relativePath,
+		type: "file:skipcheck",
+		uid: relativePath,
+		icon: { path: "icons/folder.png" },
+		mods: {
+			alt: { subtitle: "⌥: Open Folder in Finder" },
+			cmd: denyForFolder,
+			shift: denyForFolder,
+			ctrl: denyForFolder,
+			fn: denyForFolder,
+		},
+	};
+}
+
 /** @type {AlfredRun} */
 // biome-ignore lint/correctness/noUnusedVariables: Alfred run
 function run() {
@@ -200,142 +367,34 @@ function run() {
 
 	// FILES
 	for (const file of fileArray) {
-		const filename = file.fileName;
-		const relativePath = file.relativePath;
-		const absolutePath = vaultPath + "/" + relativePath;
-		const isBookmarked = starsAndBookmarks.includes(relativePath);
-		const isRecent = recentFiles.includes(relativePath);
-
-		// matching for Alfred
-		const tagMatcher = file.tags ? " #" + file.tags.join(" #") : "";
-		let additionalMatcher = "";
-		if (isRecent) additionalMatcher += " recent";
-		if (isBookmarked) additionalMatcher += " starred bookmarked";
-
-		// pprioritization of sorting
-		const prioritzedSorting = isRecent || isBookmarked;
-		const insertVia = prioritzedSorting ? "unshift" : "push";
-
-		// icon & emojis
-		let iconpath = "icons/note.png";
-		let emoji = "";
-		if (isBookmarked) emoji += "🔖 ";
-		if (isRecent) emoji += "🕑 ";
-		if (filename.toLowerCase().includes("kanban")) iconpath = "icons/kanban.png";
-		if (removeEmojis) emoji = "";
-
-		const subtitle =
-			subtitleType === "parent"
-				? "▸ " + parentFolder(relativePath)
-				: (file.tags || []).map((/** @type {string} */ t) => "#" + t).join(" ");
-
-		// Notes (file names)
-		resultsArr[insertVia]({
-			title: emoji + filename,
-			match: camelCaseMatch(filename) + tagMatcher + " filename name title" + additionalMatcher,
-			subtitle: subtitle,
-			arg: relativePath,
-			quicklookurl: absolutePath,
-			type: "file:skipcheck",
-			uid: relativePath,
-			icon: { path: iconpath },
-		});
-
-		// Aliases
-		if (file.aliases) {
-			for (const alias of file.aliases) {
-				resultsArr[insertVia]({
-					title: emoji + alias,
-					match: camelCaseMatch(alias) + "alias",
-					subtitle: "↪ " + alias,
-					arg: relativePath,
-					quicklookurl: absolutePath,
-					type: "file:skipcheck",
-					uid: alias + "_" + relativePath,
-					icon: { path: "icons/alias.png" },
-				});
-			}
-		}
-
-		// Headings
-		if (!file.headings) continue; // skips iteration if no heading
-		for (const heading of file.headings) {
-			const hName = heading.heading;
-			const hLevel = heading.level;
-			if (headingIgnore[hLevel]) continue; // skips iteration if heading has been configured as ignore
-			const headingIconpath = `icons/headings/h${hLevel}.png`;
-			const matchStr = camelCaseMatch(hName) + `h${hLevel}`;
-
-			resultsArr[insertVia]({
-				title: hName,
-				match: matchStr,
-				subtitle: "➣ " + filename,
-				arg: relativePath + "#" + hName,
-				uid: relativePath + "#" + hName,
-				quicklookurl: absolutePath,
-				icon: { path: headingIconpath },
-				mods: {
-					alt: { arg: relativePath },
-					shift: { arg: relativePath },
-				},
-			});
+		const fileItems = createFileItems(
+			file,
+			vaultPath,
+			starsAndBookmarks,
+			recentFiles,
+			removeEmojis,
+			subtitleType,
+			headingIgnore,
+		);
+		for (const item of fileItems) {
+			const isPrioritized = item.isPrioritized;
+			delete item.isPrioritized;
+			resultsArr[isPrioritized ? "unshift" : "push"](item);
 		}
 	}
 
 	// CANVASES
 	for (const canvas of canvasArray) {
-		const name = canvas.basename;
-		const relativePath = canvas.relativePath;
-		const isBookmarked = starsAndBookmarks.includes(relativePath);
-		const isRecent = recentFiles.includes(relativePath);
-
-		// matching for Alfred
-		let additionalMatcher = "";
-		if (isRecent) additionalMatcher += " recent";
-		if (isBookmarked) additionalMatcher += " starred bookmarked";
-
-		// pprioritization of sorting
-		const prioritzedSorting = isRecent || isBookmarked;
-		const insertMode = prioritzedSorting ? "unshift" : "push";
-
-		resultsArr[insertMode]({
-			title: name,
-			match: camelCaseMatch(name) + "canvas" + additionalMatcher,
-			subtitle: "▸ " + parentFolder(relativePath),
-			arg: relativePath,
-			type: "file:skipcheck",
-			icon: { path: "icons/canvas.png" },
-			uid: relativePath,
-			mods: {
-				shift: { valid: false, subtitle: "⛔ Cannot do that with a canvas." },
-				fn: { valid: false, subtitle: "⛔ Cannot do that with a canvas." },
-			},
-		});
+		const canvasItem = createCanvasItem(canvas, starsAndBookmarks, recentFiles);
+		const isPrioritized = canvasItem.isPrioritized;
+		delete canvasItem.isPrioritized;
+		resultsArr[isPrioritized ? "unshift" : "push"](canvasItem);
 	}
 
 	// FOLDERS
 	for (const absolutePath of folderArray) {
-		const denyForFolder = { valid: false, subtitle: "⛔ Cannot do that with a folder." };
-		const name = absolutePath.split("/").pop();
-		const relativePath = absolutePath.slice(vaultPath.length + 1);
-		if (!name) continue; // root on 2 level deep folder search
-
-		resultsArr.push({
-			title: name,
-			match: camelCaseMatch(name) + "folder",
-			subtitle: "▸ " + parentFolder(relativePath) + "   [↵: Browse]",
-			arg: relativePath,
-			type: "file:skipcheck",
-			uid: relativePath,
-			icon: { path: "icons/folder.png" },
-			mods: {
-				alt: { subtitle: "⌥: Open Folder in Finder" },
-				cmd: denyForFolder,
-				shift: denyForFolder,
-				ctrl: denyForFolder,
-				fn: denyForFolder,
-			},
-		});
+		const folderItem = createFolderItem(absolutePath, vaultPath);
+		if (folderItem) resultsArr.push(folderItem);
 	}
 
 	// ADDITIONAL OPTIONS WHEN BROWSING A FOLDER

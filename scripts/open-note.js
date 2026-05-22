@@ -56,10 +56,34 @@ function isAdvancedUriEnabled(vaultPath, configFolder) {
 
 //──────────────────────────────────────────────────────────────────────────────
 
-/** @type {AlfredRun} */
+/**
+ * Reads environment variables to determine the appropriate vault path to use.
+ *
+ * @return {string} vault path
+ */
+function getVaultPath() {
+	return (
+		$.NSProcessInfo.processInfo.environment.objectForKey("note_vault_path").js ||
+		$.NSProcessInfo.processInfo.environment.objectForKey("vault_path").js
+	);
+}
+
+/**
+ * Arguments:
+ *
+ * - argv[0]: the note's relative path, which can include a heading (after `#`) or line number (after `:`).
+ *
+ * Environment variables:
+ *
+ * - note_vault_path: (optional) the note's vault path.
+ * - vault_path: workflow's active vault path, used if note_vault path is not provided.
+ * - open_mode: (optional) Obsidian URI open mode.
+ *
+ * @type {AlfredRun}
+ */
 // biome-ignore lint/correctness/noUnusedVariables: Alfred run
 function run(argv) {
-	const vaultPath = $.getenv("vault_path");
+	const vaultPath = getVaultPath();
 	const vaultNameEnc = encodeURIComponent(vaultPath.replace(/.*\//, ""));
 
 	// VALIDATE that `Advanced URI` is installed and enabled.

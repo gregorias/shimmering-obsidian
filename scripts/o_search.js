@@ -270,7 +270,18 @@ function createFolderItem(absolutePath, vaultPath) {
 	};
 }
 
-/** @type {AlfredRun} */
+/**
+ * Environment variables:
+ *
+ * - vault_path: workflow's active vault path.
+ * - config_folder: The Obsidian configuration folder (e.g., ".obsidian").
+ * - main_search_subtitle: The type of subtitle to display ("parent" or "tags").
+ * - remove_emojis: Set to "1" to remove emojis from search results.
+ * - browse_folder: (optional) The relative path of a subfolder to search within.
+ * - h_lvl_ignore: Heading levels to ignore (e.g., "123").
+ *
+ * @type {AlfredRun}
+ */
 // biome-ignore lint/correctness/noUnusedVariables: Alfred run
 function run() {
 	const vaultPath = $.getenv("vault_path");
